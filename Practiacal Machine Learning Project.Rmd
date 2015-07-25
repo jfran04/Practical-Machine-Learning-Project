@@ -1,0 +1,76 @@
+---
+title: "Pactical Machine Learning Project"
+author: "Jon Francisco"
+date: "Thursday, July 23, 2015"
+output:
+  html_document:
+     theme: spacelab
+---
+# Executive Summary
+The analysis in this project looked at "self-movement" data from devices such as Jawbone Up, Nike FuelBand, and Fitbit.  These types of devices take measurements about the person wearing the devices on a regular basis with the end goal of improved health for the owner by understanding patterns in the behavior.  The goal of this particular project was to use data from accelermometers on the belt, forearm, arm and dumbell of 6 participants to predict how well they wre doing the exercise based on 5 predefined classes. 
+We were able to accurately predict the manner in which the person did the exercise by using a simple Random Forest model.
+
+
+
+### Data Loading and Preparations
+The following R packages are loaded:
+```{r}
+library("AppliedPredictiveModeling")
+library("caret")
+library("randomForest")
+```
+
+Previously downloaded training and testing data are both loaded into R.  Training data was obtained from https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv.  Testing data was obtained from:  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+```{r}
+training <- read.csv("C:/Users/200020269/Desktop/training.csv", na.strings= c("NA",""," "))
+testing <- read.csv("C:/Users/200020269/Desktop/testing.csv", na.strings= c("NA",""," "))
+```
+
+After some premliminary data analysis we noticed that there were a lot of null values that would need to be removed.  Additionally, the first 8 columns should not be used as part of any predictor model. These were timestamps, identifiers, etc...
+```{r}
+training_na_id <- apply(training, 2, function(x) {sum(is.na(x))})
+training_no_na <- training[,which(training_na_id == 0)]
+training_clean <- training_no_na[8:length(training_no_na)]
+```
+We now have a clean training data set in which to build a model
+
+
+### Model Building
+In order to perform cross validation we need to take the clean training set and split it by 70% for training and 30% for cross validation.  This allows us to test the data prior to running it against the testing data set.
+```{r}
+inTraining <- createDataPartition(y = training_clean$classe, p = 0.7, list = FALSE)
+training <- training_clean[inTraining, ]
+crossvalidation <- training_clean[-inTraining, ]
+```
+
+The analyst tried several models to inlude regression, boosting, and random forest with the random forest model being selected
+```{r}
+# fit a model to predict the classes using everything else as a predictor
+model <- randomForest(classe ~ ., data = training)
+model
+# Check for Variable Importance.  All variables are contributing to the model so we will keep what we have.
+varImpPlot(model)
+# Now perform crossvalidation on the model crossvalidate the model using the remaining 30% of data
+predictCrossVal <- predict(model, crossvalidation)
+#Generate a confustion matrix to comapre the results on cross validation
+confusionMatrix(crossvalidation$classe, predictCrossVal)
+```
+With an accuracy of 0.9952 the model seems sufficient to proceed.
+
+
+
+### Predicting
+We are now ready to predict based on the Testing data set which first needs the same pre-processing and then our model is applied.
+
+```{r}
+testing_na_id <- apply(testing, 2, function(x) {sum(is.na(x))})
+testing_no_na <- testing[,which(testing_na_id == 0)]
+testing_clean <- testing_no_na[8:length(testing_no_na)]
+# Predict the classee
+predictTesting <- predict(model, testing_clean)
+```
+
+
+### Conclusions
+We are able to accurately predict the classee of the person (the manner in which the person did the exercise) 
+
